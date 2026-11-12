@@ -1,0 +1,75 @@
+{
+ "px": 300,
+ "ortho": 60.0,
+ "center_y": 28.0,
+ "pivots": {
+  "neck": [
+   0,
+   15.0
+  ],
+  "shoulderL": [
+   -3.0,
+   12.5
+  ],
+  "shoulderR": [
+   3.0,
+   12.5
+  ],
+  "earL": [
+   -6.2,
+   27.0
+  ],
+  "earR": [
+   6.2,
+   27.0
+  ],
+  "footL": [
+   -3.4000000000000004,
+   0.7000000000000001
+  ],
+  "footR": [
+   3.4000000000000004,
+   0.7000000000000001
+  ]
+ },
+ "hat": {
+  "center": [
+   0,
+   22.5
+  ],
+  "r": 8.5
+ },
+ "fits": {
+  "scarf_snow": "body",
+  "scarf_autumn": "body",
+  "beanie": "head",
+  "crown": "head",
+  "sprout": "head",
+  "clip": "head",
+  "leafhat": "head"
+ },
+ "ears": [
+  "earL",
+  "earR"
+ ],
+ "parts": [
+  "armL",
+  "armR",
+  "body",
+  "earL",
+  "earR",
+  "fit_beanie",
+  "fit_clip",
+  "fit_crown",
+  "fit_leafhat",
+  "fit_scarf_autumn",
+  "fit_scarf_snow",
+  "fit_sprout",
+  "footL",
+  "footR",
+  "head_closed",
+  "head_happy",
+  "head_open",
+  "head_surprised"
+ ]
+}
