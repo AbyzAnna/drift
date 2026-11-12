@@ -4,6 +4,7 @@
 import Cocoa
 import ServiceManagement
 import ApplicationServices
+import Carbon.HIToolbox
 
 let noActions: [String: CAAction] = [
     "contents": NSNull(), "position": NSNull(), "bounds": NSNull(), "frame": NSNull(),
@@ -371,6 +372,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var frontId: Int?
     var frostLevel = 0.0
     var activity: NSObjectProtocol?
+    var hotKey: EventHotKeyRef?
+    var hidden = false
 
     var seasonChoice = "auto"
     var densityChoice = "steady"
@@ -392,6 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Keep the animation smooth while other apps are in front (no App Nap).
         activity = ProcessInfo.processInfo.beginActivity(options: .userInitiatedAllowingIdleSystemSleep, reason: "Drawing the weather")
         loadSettings()
+        registerHotKey()
         buildOverlays()
         applySeason()
         refreshPower()
@@ -704,7 +708,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let head = NSMenuItem(title: "Drift · \(engine.season.label)", action: nil, keyEquivalent: "")
         head.isEnabled = false
         menu.addItem(head)
-        menu.addItem(item(engine.paused ? "Resume" : "Pause", #selector(togglePause), key: "p"))
+        menu.addItem(item(engine.paused ? "Resume falling   ⌃⌥⌘D" : "Pause falling   ⌃⌥⌘D", #selector(togglePause), key: "p"))
+        menu.addItem(item(hidden ? "Show Drift" : "Hide Drift (leaves, piles and Pip)", #selector(toggleHidden), key: "h"))
         menu.addItem(.separator())
 
         let seasons = NSMenu()
@@ -760,7 +765,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: menu actions
 
+    func registerHotKey() {
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ -> OSStatus in
+            DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.togglePause() }
+            return noErr
+        }, 1, &spec, nil, nil)
+        let id = EventHotKeyID(signature: OSType(0x4452_4654), id: 1)
+        RegisterEventHotKey(UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey | cmdKey), id, GetApplicationEventTarget(), 0, &hotKey)
+    }
+
+    @objc func toggleHidden() {
+        hidden.toggle()
+        for o in overlays {
+            if hidden { o.window.orderOut(nil) } else { o.window.orderFrontRegardless() }
+        }
+        engine.paused = hidden ? true : defaults.bool(forKey: "paused")
+        updateStatusIcon()
+    }
+
     @objc func togglePause() {
+        if hidden { toggleHidden() }
         engine.paused.toggle()
         if !engine.paused { engine.resume() }
         updateStatusIcon()
