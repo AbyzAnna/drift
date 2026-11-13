@@ -1,7 +1,7 @@
 // Renders a 3D character (USDZ, e.g. a Meshy export) into the Mac app's sprite format:
 // one whole-body image, feet at y = 0, 3/4 view facing left, transparent background.
 //   swiftc -O Tools/render3d.swift -o build/render3d
-//   build/render3d iOS/App/Pip3D.usdz Resources/Characters/penguin/model3d.png [height=34] [ortho=60] [centerY=28]
+//   build/render3d iOS/App/Pip3D_penguin.usdz Resources/Characters/penguin/model3d.png [height=34] [ortho=60] [centerY=28]
 import AppKit
 import SceneKit
 

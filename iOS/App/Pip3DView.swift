@@ -2,7 +2,7 @@ import SceneKit
 import SwiftUI
 import UIKit
 
-/// Drives the 3D Pip (Pip3D.usdz, made from the Meshy penguin). The model has no rig,
+/// Drives the 3D Pip. Each species with a Meshy model has a Pip3D_<species>.usdz in the app. The models have no rig,
 /// so every motion is procedural: breathing, waddling, leaning with the phone's tilt,
 /// hopping when petted, a dizzy spin on shake and a spin you can flick with a finger.
 final class Pip3DController: NSObject, SCNSceneRendererDelegate {
@@ -10,6 +10,12 @@ final class Pip3DController: NSObject, SCNSceneRendererDelegate {
     private let pivot = SCNNode()   // sits at Pip's feet: lean, hop, squash
     private let spinner = SCNNode() // turns around the vertical axis
     private let rim = SCNLight()
+    private var model = SCNNode()
+    private(set) var species: PipSpecies?
+
+    static func hasModel(_ s: PipSpecies) -> Bool {
+        Bundle.main.url(forResource: "Pip3D_\(s.rawValue)", withExtension: "usdz") != nil
+    }
 
     /// Gravity in screen space, (0, 1) when the phone is upright.
     var tilt: () -> (Double, Double) = { (0, 1) }
@@ -22,33 +28,6 @@ final class Pip3DController: NSObject, SCNSceneRendererDelegate {
         super.init()
         scene.background.contents = UIColor.clear
 
-        // Model: about 2 units tall, centred on the origin. Lift it so the feet sit on the pivot.
-        let model = SCNNode()
-        if let url = Bundle.main.url(forResource: "Pip3D", withExtension: "usdz"),
-           let loaded = try? SCNScene(url: url, options: [.checkConsistency: false]) {
-            for child in loaded.rootNode.childNodes { model.addChildNode(child) }
-        }
-        let plush = SCNMaterial()
-        plush.lightingModel = .physicallyBased
-        plush.diffuse.contents = UIColor(red: 0.97, green: 0.96, blue: 0.94, alpha: 1)
-        plush.roughness.contents = 0.9
-        plush.metalness.contents = 0.0
-        model.enumerateHierarchy { n, _ in
-            guard let g = n.geometry else { return }
-            n.castsShadow = true
-            // Textured models (Meshy exports) keep their own colours; a bare mesh gets soft white plush.
-            if g.materials.contains(where: { $0.diffuse.contents is UIImage || $0.diffuse.contents is URL || $0.diffuse.contents is String }) {
-                for m in g.materials { m.lightingModel = .physicallyBased; m.metalness.contents = 0.0 }
-            } else {
-                g.materials = [plush]
-            }
-        }
-        let (lo, hi) = model.boundingBox
-        let height = max(0.001, hi.y - lo.y)
-        let s = 2.0 / height
-        model.scale = SCNVector3(s, s, s)
-        model.position = SCNVector3(-(lo.x + hi.x) / 2 * s, -lo.y * s, -(lo.z + hi.z) / 2 * s)
-        spinner.addChildNode(model)
         pivot.addChildNode(spinner)
         scene.rootNode.addChildNode(pivot)
 
@@ -106,6 +85,39 @@ final class Pip3DController: NSObject, SCNSceneRendererDelegate {
         camNode.look(at: SCNVector3(0, 1.0, 0))
         camNode.name = "camera"
         scene.rootNode.addChildNode(camNode)
+    }
+
+    /// Swaps in this species' model (about 2 units tall, feet on the pivot).
+    func show(_ s: PipSpecies) {
+        guard s != species else { return }
+        species = s
+        model.removeFromParentNode()
+        let m = SCNNode()
+        if let url = Bundle.main.url(forResource: "Pip3D_\(s.rawValue)", withExtension: "usdz"),
+           let loaded = try? SCNScene(url: url, options: [.checkConsistency: false]) {
+            for child in loaded.rootNode.childNodes { m.addChildNode(child) }
+        }
+        let plush = SCNMaterial()
+        plush.lightingModel = .physicallyBased
+        plush.diffuse.contents = UIColor(red: 0.97, green: 0.96, blue: 0.94, alpha: 1)
+        plush.roughness.contents = 0.9
+        plush.metalness.contents = 0.0
+        m.enumerateHierarchy { n, _ in
+            guard let g = n.geometry else { return }
+            n.castsShadow = true
+            // Textured models (Meshy exports) keep their own colours; a bare mesh gets soft white plush.
+            if g.materials.contains(where: { $0.diffuse.contents is UIImage || $0.diffuse.contents is URL || $0.diffuse.contents is String }) {
+                for mat in g.materials { mat.lightingModel = .physicallyBased; mat.metalness.contents = 0.0 }
+            } else {
+                g.materials = [plush]
+            }
+        }
+        let (lo, hi) = m.boundingBox
+        let k = 2.0 / max(0.001, hi.y - lo.y)
+        m.scale = SCNVector3(k, k, k)
+        m.position = SCNVector3(-(lo.x + hi.x) / 2 * k, -lo.y * k, -(lo.z + hi.z) / 2 * k)
+        model = m
+        spinner.addChildNode(m)
     }
 
     var cameraNode: SCNNode? { scene.rootNode.childNode(withName: "camera", recursively: false) }

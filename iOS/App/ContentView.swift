@@ -19,8 +19,9 @@ struct ContentView: View {
 
     private var species: PipSpecies { PipSpecies(rawValue: speciesRaw) ?? .bunny }
     private var season: PipSeason { PipSeason(rawValue: seasonRaw) ?? .snow }
-    /// The penguin chick is shown as the real 3D model (Pip3D.usdz) unless switched off.
-    private var show3D: Bool { species == .penguin && pip3DOn }
+    /// Animals with a 3D model (Pip3D_<species>.usdz) are shown in 3D unless switched off.
+    private var has3D: Bool { Pip3DController.hasModel(species) }
+    private var show3D: Bool { has3D && pip3DOn }
 
     var body: some View {
         ZStack {
@@ -72,6 +73,7 @@ struct ContentView: View {
         .task { await blinkLoop() }
         .onChange(of: speciesRaw) { _, _ in
             react(.happy, "Hello! I'm a \(species.title.lowercased()) now.")
+            pip3D.show(species)
             pip3D.hop()
             if islandOn { Task { await IslandPip.start(species: species, season: season) } }
         }
@@ -107,6 +109,7 @@ struct ContentView: View {
                 .offset(y: 150)
             if show3D {
                 Pip3DView(controller: pip3D)
+                    .onAppear { pip3D.show(species) }
                     .frame(height: 340)
                     .contentShape(Rectangle())
                     .onTapGesture { pet() }
@@ -132,7 +135,7 @@ struct ContentView: View {
                     .animation(.spring(response: 0.25, dampingFraction: 0.45), value: squish)
                     .onTapGesture { pet() }
             }
-            if species == .penguin {
+            if has3D {
                 Button {
                     withAnimation(.easeInOut(duration: 0.3)) { pip3DOn.toggle() }
                     if pip3DOn { pip3D.hop() }
@@ -161,7 +164,7 @@ struct ContentView: View {
                     Button {
                         speciesRaw = s.rawValue
                     } label: {
-                        Image(pipImage(s, season, .open, head: true))
+                        Image(Pip3DController.hasModel(s) && pip3DOn ? "\(s.rawValue)_3d_thumb" : pipImage(s, season, .open, head: true))
                             .resizable().scaledToFit()
                             .frame(width: 52, height: 52)
                             .background(.white.opacity(s == species ? 0.3 : 0.1), in: Circle())
