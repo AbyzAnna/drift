@@ -100,6 +100,19 @@ extension PipArt {
         let rock = walking ? sin(wp) * 0.08 : sin(t * 1.1) * 0.01
         ctx.rotate(by: rock)
 
+        if S.parts["model3d"] != nil {
+            // A whole 3D model (Tools/render3d.swift): no separate limbs, so it waddles, hops and squashes as one.
+            let lean = walking ? sin(wp) * 0.06 : 0
+            ctx.rotate(by: lean)
+            S.layer(ctx, "model3d", offset: CGPoint(x: 0, y: walking ? abs(sin(wp)) * 1.2 : 0))
+            if kind == .rain {
+                ctx.saveGState()
+                ctx.translateBy(x: S.hatCenter.x, y: S.hatCenter.y)
+                ctx.scaleBy(x: S.hatR / 14, y: S.hatR / 14)
+                umbrella(ctx, .zero, 14, -1, -wind * Double(dir), t)
+                ctx.restoreGState()
+            }
+        } else {
         // feet lift in turn
         for (name, ph) in [("footL", CGFloat.pi), ("footR", 0)] {
             let lift = walking ? max(0, sin(wp + ph)) * 1.4 : 0
@@ -173,6 +186,7 @@ extension PipArt {
 
         // scarves sit over the chin
         for f in S.outfit(for: kind) where S.fits[String(f.dropFirst(4))] == "body" { S.layer(ctx, f) }
+        }
         ctx.restoreGState()
 
         let top = (S.hatCenter.y + S.hatR) * sy * k
