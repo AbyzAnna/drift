@@ -101,6 +101,14 @@ enum PipMood: String, Codable, Hashable {
 }
 
 /// Asset name for a rendered Pip, e.g. "bunny_snow_happy" (whole body) or "bunny_snow_happy_head".
-func pipImage(_ species: PipSpecies, _ season: PipSeason, _ mood: PipMood, head: Bool = false) -> String {
-    "\(species.rawValue)_\(season.look)_\(mood.rawValue)" + (head ? "_head" : "")
+/// Animals with a 3D model use a render of it ("bunny_3d", "bunny_3d_head") everywhere outside the app's
+/// live 3D view: the Dynamic Island, the Lock Screen and widgets. Pass allow3D: false for the drawn look.
+func pipImage(_ species: PipSpecies, _ season: PipSeason, _ mood: PipMood, head: Bool = false, allow3D: Bool = true) -> String {
+    if allow3D && species.has3D { return "\(species.rawValue)_3d" + (head ? "_head" : "") }
+    return "\(species.rawValue)_\(season.look)_\(mood.rawValue)" + (head ? "_head" : "")
+}
+
+extension PipSpecies {
+    /// Species that have a 3D model (Pip3D_<species>.usdz) and its renders in Pip.xcassets.
+    var has3D: Bool { [.penguin, .bunny, .lamb].contains(self) }
 }

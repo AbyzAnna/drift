@@ -13,6 +13,8 @@ struct ContentView: View {
     @State private var breathe = false
     @State private var reacting = false
     @State private var lastDragX: CGFloat = 0
+    @State private var hopAt = Date.distantPast
+    @State private var spinAt = Date.distantPast
     @StateObject private var field = Field()
     @AppStorage("pip3D") private var pip3DOn = true
     @State private var pip3D = Pip3DController()
@@ -62,6 +64,7 @@ struct ContentView: View {
             field.start()
             field.onShake = {
                 pip3D.spin()
+                spinAt = Date()
                 react(.surprised, "Whoa! Everything's spinning!")
             }
             let f = field
@@ -75,12 +78,14 @@ struct ContentView: View {
             react(.happy, "Hello! I'm a \(species.title.lowercased()) now.")
             pip3D.show(species)
             pip3D.hop()
+            hopAt = Date()
             if islandOn { Task { await IslandPip.start(species: species, season: season) } }
         }
         .onChange(of: seasonRaw) { _, _ in
             react(.happy, seasonLine)
             pip3D.setRim(season.tint)
             pip3D.hop()
+            hopAt = Date()
             if islandOn { Task { await IslandPip.setSeason(season) } }
         }
     }
@@ -126,14 +131,27 @@ struct ContentView: View {
                     )
                     .transition(.opacity)
             } else {
-                Image(pipImage(species, season, mood))
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(height: 320)
-                    .scaleEffect(x: squish ? 1.08 : 1, y: squish ? 0.9 : (breathe ? 1.015 : 1), anchor: .bottom)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.45), value: squish)
-                    .onTapGesture { pet() }
+                // The drawn Pip moves like the 3D one: waddle, lean with tilt, hop on tap, spin on shake.
+                TimelineView(.animation) { tl in
+                    let t = tl.date.timeIntervalSinceReferenceDate
+                    let hop = tl.date.timeIntervalSince(hopAt) / 0.55
+                    let spin = tl.date.timeIntervalSince(spinAt) / 1.3
+                    let jump = (0..<1).contains(hop) ? sin(.pi * hop) * 70 : 0
+                    let turn = (0..<1).contains(spin) ? (1 - pow(1 - spin, 3)) * 720 : 0
+                    let wobble = (0..<1).contains(spin) ? sin(spin * 18) * 0.12 * (1 - spin) : 0
+                    Image(pipImage(species, season, mood, allow3D: false))
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(height: 320)
+                        .scaleEffect(x: squish ? 1.08 : 1, y: squish ? 0.9 : 1 + 0.015 * sin(t * 2.3), anchor: .bottom)
+                        .rotationEffect(.radians(0.06 * sin(t * 2.8) - field.gx * 0.35 + wobble), anchor: .bottom)
+                        .rotation3DEffect(.degrees(turn), axis: (x: 0, y: 1, z: 0))
+                        .offset(y: -(6 * abs(sin(t * 2.8)) + jump))
+                        .animation(.spring(response: 0.25, dampingFraction: 0.45), value: squish)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { pet() }
             }
             if has3D {
                 Button {
@@ -164,7 +182,7 @@ struct ContentView: View {
                     Button {
                         speciesRaw = s.rawValue
                     } label: {
-                        Image(Pip3DController.hasModel(s) && pip3DOn ? "\(s.rawValue)_3d_thumb" : pipImage(s, season, .open, head: true))
+                        Image(Pip3DController.hasModel(s) && pip3DOn ? "\(s.rawValue)_3d_thumb" : pipImage(s, season, .open, head: true, allow3D: false))
                             .resizable().scaledToFit()
                             .frame(width: 52, height: 52)
                             .background(.white.opacity(s == species ? 0.3 : 0.1), in: Circle())
@@ -241,7 +259,7 @@ struct ContentView: View {
 
     private func pet() {
         squish = true
-        if show3D { pip3D.hop() }
+        if show3D { pip3D.hop() } else { hopAt = Date() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { squish = false }
         hearts.append(Heart())
         if hearts.count > 24 { hearts.removeFirst(12) }
