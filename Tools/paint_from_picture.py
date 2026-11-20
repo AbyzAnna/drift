@@ -30,7 +30,15 @@ vis = V[:, 2] >= zb[vi, vj] - depth * 0.03
 # smooth the visibility a bit over the mesh so seams fall on grazing angles
 N = tri.vertex_normals; vis &= N[:, 2] > 0.15
 # texture: left half picture, right half body colour
-rgb = Image.alpha_composite(Image.new('RGBA', im.size, (235, 230, 222, 255)), im).convert('RGB')
+# fill the transparent surroundings with the nearest edge colours (push-pull), so silhouette texels don't pick up background
+arr = np.asarray(im).astype(np.float64) / 255.0; al = (arr[:, :, 3:4] > 0.6).astype(np.float64)
+col = arr[:, :, :3] * al; acc = al.copy(); fill = col.copy()
+for r in (2, 4, 8, 16, 32, 64):
+    cb = np.asarray(Image.fromarray((col * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(r))).astype(np.float64) / 255
+    ab = np.asarray(Image.fromarray((acc[:, :, 0] * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(r))).astype(np.float64)[:, :, None] / 255
+    est = cb / np.maximum(ab, 1e-3); need = (acc < 0.5) & (ab > 0.02)
+    fill = np.where(need, est, fill); acc = np.where(need, 1.0, acc); col = fill * acc
+rgb = Image.fromarray((np.clip(fill, 0, 1) * 255).astype(np.uint8))
 small = rgb.resize((W // 4, H // 4)); body = small.filter(ImageFilter.MedianFilter(15)).filter(ImageFilter.GaussianBlur(3)).resize((W, H))
 # outside the silhouette, extend colours inward-out so edge texels aren't background
 tex = Image.new('RGB', (W * 2, H)); tex.paste(rgb, (0, 0)); tex.paste(body, (W, 0))

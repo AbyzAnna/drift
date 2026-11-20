@@ -110,5 +110,5 @@ func pipImage(_ species: PipSpecies, _ season: PipSeason, _ mood: PipMood, head:
 
 extension PipSpecies {
     /// Species that have a 3D model (Pip3D_<species>.usdz) and its renders in Pip.xcassets.
-    var has3D: Bool { [.penguin, .bunny, .lamb].contains(self) }
+    var has3D: Bool { [.penguin, .bunny, .lamb, .otter].contains(self) }
 }
